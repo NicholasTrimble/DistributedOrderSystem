@@ -1,3 +1,8 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+  </Folder>
+  <Project Path="../DistributedOrderSystem.Domain/DistributedOrderSystem.Domain.csproj" />
+  <Project Path="../DistributedOrderSystem.Infrastructure/DistributedOrderSystem.Infrastructure.csproj" />
   <Project Path="DistributedOrderSystem.csproj" />
 </Solution>
