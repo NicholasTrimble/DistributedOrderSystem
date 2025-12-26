@@ -29,6 +29,7 @@ namespace DistributedOrderSystem.Controllers
             {
                 Id = order.Id,
                 Status = order.Status.ToString(),
+                CreatedAt = order.CreatedAt,
                 TotalPrice = order.Items.Sum(item =>
                     _context.Products.First(p => p.Id == item.ProductId).Price * item.Quantity),
                 Items = order.Items.Select(item => new OrderItemReadDto
@@ -41,6 +42,41 @@ namespace DistributedOrderSystem.Controllers
 
             return Ok(orderDtos);
         }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetOrderById(int id)
+        {
+            var order = await _context.Orders
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null)
+                return NotFound("Order not found.");
+
+            // Load products once
+            var productDict = await _context.Products
+                .ToDictionaryAsync(p => p.Id);
+
+            var dto = new OrderReadDto
+            {
+                Id = order.Id,
+                Status = order.Status.ToString(),
+                CreatedAt = order.CreatedAt,
+                TotalPrice = order.Items.Sum(i =>
+                    productDict[i.ProductId].Price * i.Quantity),
+                Items = order.Items.Select(i => new OrderItemReadDto
+                {
+                    ProductId = i.ProductId,
+                    Quantity = i.Quantity,
+                    LineTotal = productDict[i.ProductId].Price * i.Quantity
+                }).ToList()
+            };
+
+            return Ok(dto);
+
+        }
+
+
 
 
 
@@ -93,6 +129,7 @@ namespace DistributedOrderSystem.Controllers
             {
                 Id = order.Id,
                 Status = order.Status.ToString(),
+                CreatedAt = order.CreatedAt,
                 TotalPrice = products.Sum(p =>
                 {
                     var quantity = dto.Items.First(i => i.ProductId == p.Id).Quantity;
@@ -139,6 +176,7 @@ namespace DistributedOrderSystem.Controllers
             {
                 Id = order.Id,
                 Status = order.Status.ToString(),
+                CreatedAt = order.CreatedAt,
                 TotalPrice = order.Items.Sum(i =>
                     _context.Products.First(p => p.Id == i.ProductId).Price * i.Quantity),
                 Items = order.Items.Select(i => new OrderItemReadDto
@@ -151,8 +189,6 @@ namespace DistributedOrderSystem.Controllers
 
             return Ok(orderReadDto);
         }
-
-
 
 
 
