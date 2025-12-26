@@ -1,5 +1,7 @@
-using Microsoft.EntityFrameworkCore;
 using DistributedOrderSystem.Infrastructure.Data;
+using DistributedOrderSystem.Middleware;
+using DistributedOrderSystem.Workers;
+using Microsoft.EntityFrameworkCore;
 
 
 
@@ -13,12 +15,15 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Add services to the container.
 
 builder.Services.AddControllers();
-
-
+builder.Services.AddMemoryCache();
+builder.Services.AddHostedService<OrderProcessingWorker>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseMiddleware<ExceptionMiddleware>();
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

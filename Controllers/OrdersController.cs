@@ -1,9 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using DistributedOrderSystem.Infrastructure.Data;
 using DistributedOrderSystem.Domain.Models;
 using DistributedOrderSystem.DTOs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace DistributedOrderSystem.Controllers
 {
@@ -12,12 +12,18 @@ namespace DistributedOrderSystem.Controllers
     public class OrdersController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ILogger<OrdersController> _logger;
 
-        public OrdersController(AppDbContext context)
+        
+        public OrdersController(AppDbContext context, ILogger<OrdersController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
+        // =======================
+        // GET ALL ORDERS
+        // =======================
         [HttpGet]
         public async Task<IActionResult> GetOrders()
         {
@@ -43,6 +49,9 @@ namespace DistributedOrderSystem.Controllers
             return Ok(orderDtos);
         }
 
+        // =======================
+        // GET ORDER BY ID
+        // =======================
         [HttpGet("{id}")]
         public async Task<IActionResult> GetOrderById(int id)
         {
@@ -53,9 +62,7 @@ namespace DistributedOrderSystem.Controllers
             if (order == null)
                 return NotFound("Order not found.");
 
-            // Load products once
-            var productDict = await _context.Products
-                .ToDictionaryAsync(p => p.Id);
+            var productDict = await _context.Products.ToDictionaryAsync(p => p.Id);
 
             var dto = new OrderReadDto
             {
@@ -73,58 +80,63 @@ namespace DistributedOrderSystem.Controllers
             };
 
             return Ok(dto);
-
         }
 
-
-
-
-
+        // =======================
+        // CREATE ORDER
+        // =======================
         [HttpPost]
         public async Task<IActionResult> CreateOrder([FromBody] OrderCreateDto dto)
         {
-            // Load all necessary products
-            var productIds = dto.Items.Select(i => i.ProductId).ToList();
+            _logger.LogInformation("Creating order with {ItemCount} items.", dto.Items.Count);
 
+            var productIds = dto.Items.Select(i => i.ProductId).ToList();
             var products = await _context.Products
                 .Where(p => productIds.Contains(p.Id))
                 .ToListAsync();
 
-            // Validate stock
             foreach (var item in dto.Items)
             {
                 var product = products.FirstOrDefault(p => p.Id == item.ProductId);
 
                 if (product == null)
+                {
+                    _logger.LogWarning("Product {ProductId} not found while creating order.", item.ProductId);
                     return BadRequest($"Product {item.ProductId} does not exist.");
+                }
 
                 if (product.StockQuantity < item.Quantity)
+                {
+                    _logger.LogWarning(
+                        "Insufficient stock for product {ProductName}. Requested {Requested}, Available {Available}.",
+                        product.Name, item.Quantity, product.StockQuantity
+                   );
+
                     return BadRequest($"Insufficient stock for product {product.Name}.");
+                }
             }
 
-            // Build Order
             var order = new Order
             {
                 Status = OrderStatus.Pending,
                 Items = dto.Items.Select(i => new OrderItem
                 {
                     ProductId = i.ProductId,
-                    Quantity = i.Quantity,
+                    Quantity = i.Quantity
                 }).ToList()
             };
 
-            // Deduct stock
             foreach (var item in dto.Items)
             {
                 var product = products.First(p => p.Id == item.ProductId);
                 product.StockQuantity -= item.Quantity;
             }
 
-            // Save order
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
 
-            // Create read DTO response
+            _logger.LogInformation("Order {OrderId} created successfully.", order.Id);
+
             var orderReadDto = new OrderReadDto
             {
                 Id = order.Id,
@@ -132,8 +144,8 @@ namespace DistributedOrderSystem.Controllers
                 CreatedAt = order.CreatedAt,
                 TotalPrice = products.Sum(p =>
                 {
-                    var quantity = dto.Items.First(i => i.ProductId == p.Id).Quantity;
-                    return p.Price * quantity;
+                    var qty = dto.Items.First(i => i.ProductId == p.Id).Quantity;
+                    return p.Price * qty;
                 }),
                 Items = order.Items.Select(i => new OrderItemReadDto
                 {
@@ -144,34 +156,35 @@ namespace DistributedOrderSystem.Controllers
             };
 
             return Ok(orderReadDto);
-
         }
 
+        // =======================
+        // UPDATE ORDER STATUS
+        // =======================
         [HttpPut("{id}/status")]
         public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusDto dto)
         {
-            // Load the order (with items too if needed later)
+            _logger.LogInformation("Updating status for order {OrderId} to {NewStatus}", id, dto.NewStatus);
+
             var order = await _context.Orders
                 .Include(o => o.Items)
                 .FirstOrDefaultAsync(o => o.Id == id);
 
             if (order == null)
+            {
+                _logger.LogWarning("Order {OrderId} not found.", id);
                 return NotFound("Order not found.");
+            }
 
-            // Try to parse the incoming status string into the enum
             if (!Enum.TryParse<OrderStatus>(dto.NewStatus, true, out var newStatus))
+            {
+                _logger.LogWarning("Invalid order status '{NewStatus}' for order {OrderId}.", dto.NewStatus, id);
                 return BadRequest("Invalid order status.");
+            }
 
-            // Optional: business rule validation
-            // For example: Pending → Completed should not be allowed
-            // You can add rules here later if you want
-
-            // Update the status
             order.Status = newStatus;
-
             await _context.SaveChangesAsync();
 
-            // Return updated order DTO
             var orderReadDto = new OrderReadDto
             {
                 Id = order.Id,
@@ -189,8 +202,5 @@ namespace DistributedOrderSystem.Controllers
 
             return Ok(orderReadDto);
         }
-
-
-
     }
 }
