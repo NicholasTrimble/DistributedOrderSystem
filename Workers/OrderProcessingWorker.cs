@@ -19,22 +19,31 @@ namespace DistributedOrderSystem.Workers
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                using var scope = _services.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-                var pendingOrders = await db.Orders
-                    .Where(o => o.Status == OrderStatus.Pending)
-                    .ToListAsync(stoppingToken);
-
-                foreach (var order in pendingOrders)
+                try
                 {
-                    _logger.LogInformation($"Processing Order {order.Id}");
-                    order.Status = OrderStatus.Processing;
+                    using var scope = _services.CreateScope();
+                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                    var pendingOrders = await db.Orders
+                        .Where(o => o.Status == OrderStatus.Pending)
+                        .ToListAsync(stoppingToken);
+
+                    foreach (var order in pendingOrders)
+                    {
+                        _logger.LogInformation($"Processing Order {order.Id}");
+                        order.Status = OrderStatus.Processing;
+                    }
+
+                    await db.SaveChangesAsync(stoppingToken); 
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error occurred in OrderProcessingWorker.");
                 }
 
-                await db.SaveChangesAsync();
                 await Task.Delay(10000, stoppingToken); 
             }
         }
+
     }
 }

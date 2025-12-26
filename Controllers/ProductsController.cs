@@ -3,13 +3,16 @@ using DistributedOrderSystem.DTOs;
 using DistributedOrderSystem.Infrastructure.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+
 
 namespace DistributedOrderSystem.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [EnableRateLimiting("fixed")]
     public class ProductsController : ControllerBase
     {
         private readonly AppDbContext _context;
