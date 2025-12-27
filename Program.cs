@@ -5,6 +5,11 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
+if (args.Contains("--generate-docker"))
+{
+    DistributedOrderSystem.Tools.DockerfileGenerator.GenerateDockerfile();
+    return;
+}
 
 
 var builder = WebApplication.CreateBuilder(args);
