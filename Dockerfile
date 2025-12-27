@@ -1,21 +1,24 @@
 ﻿# Build stage
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /app
+WORKDIR /src
 
-COPY *.sln .
-COPY DistributedOrderSystem/*.csproj DistributedOrderSystem/
-COPY DistributedOrderSystem.Domain/*.csproj DistributedOrderSystem.Domain/
-COPY DistributedOrderSystem.Infrastructure/*.csproj DistributedOrderSystem.Infrastructure/
+# Copy project file
+COPY DistributedOrderSystem.csproj ./
 
+# Restore dependencies
 RUN dotnet restore
 
+# Copy the full source code
 COPY . .
-RUN dotnet publish DistributedOrderSystem/DistributedOrderSystem.csproj -c Release -o /out
+
+# Publish release build
+RUN dotnet publish -c Release -o /app
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
-COPY --from=build /out .
+
+COPY --from=build /app .
 
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
