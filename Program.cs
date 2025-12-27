@@ -5,9 +5,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
-Console.WriteLine("?????? THIS IS THE REAL PROGRAM.CS RUNNING ??????");
-Console.WriteLine("?? USING PROGRAM.CS FROM SOURCE\\REPOS ??");
-
 
 
 var builder = WebApplication.CreateBuilder(args);
