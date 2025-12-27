@@ -2,17 +2,14 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Copy project file
-COPY DistributedOrderSystem.csproj ./
-
-# Restore dependencies
-RUN dotnet restore
-
-# Copy full source
+# Copy solution and all project files
 COPY . .
 
-# Publish release build
-RUN dotnet publish -c Release -o /app
+# Restore dependencies
+RUN dotnet restore DistributedOrderSystem.slnx
+
+# Publish the main project
+RUN dotnet publish DistributedOrderSystem.csproj -c Release -o /app
 
 # --- Runtime Stage ---
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
